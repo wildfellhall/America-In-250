@@ -2,6 +2,7 @@ const canvas = document.getElementById("dotMap");
 const ctx = canvas.getContext("2d");
 const legend = document.getElementById("legend");
 const profile = document.getElementById("profile");
+const selectedProfile = document.getElementById("selectedProfile");
 const citySearch = document.getElementById("citySearch");
 const searchResults = document.getElementById("searchResults");
 const pushModeButton = document.getElementById("pushMode");
@@ -639,7 +640,7 @@ function renderProfile(dot, placeOverride = null) {
 function renderPinnedPlaceProfile(place) {
   const state = stateMetrics[place.state];
   const stateName = state?.name || STATE_ABBR[place.state] || "";
-  profile.innerHTML = `
+  selectedProfile.innerHTML = `
     <h2>${place.displayName || formatPlaceName(place.name)}</h2>
     <dl>
       <dt>State</dt><dd>${stateName}</dd>
@@ -652,14 +653,8 @@ function renderPinnedPlaceProfile(place) {
     </dl>
     <p>Pinned Census place centroid; ACS 2024 5-year estimates where available.</p>
   `;
-
-  const rect = canvas.getBoundingClientRect();
-  const profileWidth = 272;
-  const profileHeight = 236;
-  const x = Math.min(Math.max(selectedMarker.x + 18, 12), rect.width - profileWidth - 12);
-  const y = Math.min(Math.max(selectedMarker.y + 18, 12), rect.height - profileHeight - 12);
-  profile.style.transform = `translate(${x}px, ${y}px)`;
-  profile.classList.add("visible", "pinned");
+  selectedProfile.classList.add("visible");
+  profile.classList.remove("visible", "pinned");
 }
 
 function clearSearchResults() {
@@ -786,8 +781,6 @@ function togglePinnedProfile(event) {
   if (pinnedProfile) {
     pinnedProfile = false;
     selectedDot = null;
-    selectedMarker = null;
-    pinnedPlace = null;
     profile.classList.remove("pinned");
     updateHoverProfile();
     return;
@@ -795,8 +788,6 @@ function togglePinnedProfile(event) {
 
   if (!pointerInsideMap()) return;
   selectedDot = null;
-  selectedMarker = null;
-  pinnedPlace = null;
   renderProfile(nearestDotToPointer());
   if (hoverDot) {
     pinnedProfile = true;
@@ -869,6 +860,7 @@ pushModeButton.addEventListener("click", () => {
   selectedMarker = null;
   pinnedPlace = null;
   profile.classList.remove("visible", "pinned");
+  selectedProfile.classList.remove("visible");
   pushModeButton.classList.toggle("active", pushMode);
   pushModeButton.setAttribute("aria-pressed", String(pushMode));
   canvas.classList.toggle("pushing", pushMode);
