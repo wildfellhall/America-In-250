@@ -469,6 +469,21 @@ function resetDots() {
   }
 }
 
+function clearPins() {
+  pinnedProfile = false;
+  hoverDot = null;
+  selectedDot = null;
+  selectedMarker = null;
+  pinnedPlace = null;
+  profile.classList.remove("visible", "pinned");
+  selectedProfile.classList.remove("visible");
+}
+
+function resetMap() {
+  resetDots();
+  clearPins();
+}
+
 function drawStateOutlines() {
   ctx.save();
   ctx.strokeStyle = "rgba(23, 32, 42, 0.12)";
@@ -854,19 +869,13 @@ citySearch.addEventListener("keydown", (event) => {
 
 pushModeButton.addEventListener("click", () => {
   pushMode = !pushMode;
-  pinnedProfile = false;
-  hoverDot = null;
-  selectedDot = null;
-  selectedMarker = null;
-  pinnedPlace = null;
-  profile.classList.remove("visible", "pinned");
-  selectedProfile.classList.remove("visible");
+  clearPins();
   pushModeButton.classList.toggle("active", pushMode);
   pushModeButton.setAttribute("aria-pressed", String(pushMode));
   canvas.classList.toggle("pushing", pushMode);
 });
 
-resetButton.addEventListener("click", resetDots);
+resetButton.addEventListener("click", resetMap);
 viewButtons.forEach((button) => button.addEventListener("click", () => setView(button.dataset.view)));
 
 init().catch((error) => {
