@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>America in 250</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="toolbar" aria-label="Dot map controls">
+        <div class="brand">
+          <span class="mark"></span>
+          <div>
+            <h1>America in 250</h1>
+            <p>25,000 living points shaped by national patterns</p>
+          </div>
+        </div>
+
+        <div class="control-set" aria-label="Data views">
+          <button class="view-button active" data-view="flag" type="button">Flag</button>
+          <button class="view-button" data-view="population" type="button">Population</button>
+          <button class="view-button" data-view="wealth" type="button">Wealth</button>
+          <button class="view-button" data-view="diversity" type="button">Diversity</button>
+          <button class="view-button" data-view="landscape" type="button">Landscape</button>
+        </div>
+
+        <div class="control-set right">
+          <div class="search" role="search">
+            <input
+              id="citySearch"
+              type="search"
+              autocomplete="off"
+              placeholder="Search cities"
+              aria-label="Search Census places"
+              aria-controls="searchResults"
+            />
+            <div id="searchResults" class="search-results" role="listbox"></div>
+          </div>
+          <button id="pushMode" class="tool-button" type="button" aria-pressed="false">
+            <span class="icon">↔</span>
+            Push
+          </button>
+          <button id="resetDots" class="tool-button" type="button">
+            <span class="icon">↺</span>
+            Reset
+          </button>
+        </div>
+      </section>
+
+      <section class="stage" aria-label="Interactive dot map">
+        <canvas id="dotMap"></canvas>
+        <div class="profile" id="profile" role="status" aria-live="polite"></div>
+        <div class="legend" id="legend" aria-live="polite"></div>
+        <div class="sources">
+          Geometry: Census state boundaries. Data: ACS 2024 5-year via Census Reporter; Census 2024 place gazetteer.
+        </div>
+      </section>
+    </main>
+
+    <script src="script.js"></script>
+  </body>
+</html>
