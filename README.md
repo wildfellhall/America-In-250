@@ -1,6 +1,6 @@
 
 # America-In-250
-Just a little something for the 250th!
+Just a little something special for our 250th!
 <br/><br/>
 
 <img width="1498" height="797" alt="Screenshot 2026-07-01 at 9 05 22 PM" src="https://github.com/user-attachments/assets/9a4df26b-377b-478b-99fa-8b2f9d54fd89" />
