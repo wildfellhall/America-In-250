@@ -1,6 +1,6 @@
 
 # America-In-250
-Just a little something special for our 250th! Happy early Independence Day!
+Just a little something special for our 250th! Happy early Independence Day! An interactive molecular map of our country with views for wealth, population, diversity and more. 
 <br/><br/>
 
 <img width="1498" height="797" alt="Screenshot 2026-07-01 at 9 05 22 PM" src="https://github.com/user-attachments/assets/9a4df26b-377b-478b-99fa-8b2f9d54fd89" />
