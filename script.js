@@ -130,9 +130,13 @@ const views = {
     label:
       "Diversity: dot size is based on each dot's nearest Census place ACS 2024 5-year race/ethnicity composition using a Simpson diversity index.",
   },
+  crime: {
+    label:
+      "Crime: higher 2024 FBI UCR violent and property offense rates produce larger dots. Direct city-agency data is used where matched; otherwise the nearest matched reporting city is used.",
+  },
   landscape: {
     label:
-      "Landscape: dot size is based on Census state land area, emphasizing the physical scale of western and plains states.",
+      "Landscape: dot size is based on the land area of each dot's nearest Census place, using a log scale so local differences remain visible.",
   },
 };
 
@@ -143,6 +147,8 @@ let searchablePlaces = [];
 let placeDensityRange = { min: 0, max: 1 };
 let placeIncomeRange = { min: 0, max: 1 };
 let placeDiversityRange = { min: 0, max: 1 };
+let placeCrimeRange = { min: 0, max: 1 };
+let placeLandAreaRange = { min: 0, max: 1 };
 let projectedRings = [];
 let dots = [];
 let activeView = "flag";
@@ -231,6 +237,8 @@ function preparePlaces(places) {
   const densityValues = [];
   const incomeValues = [];
   const diversityValues = [];
+  const crimeValues = [];
+  const landAreaValues = [];
   for (const place of places) {
     const [px, py] = albersLower48(place.lon, place.lat);
     const density =
@@ -242,6 +250,8 @@ function preparePlaces(places) {
     if (Number.isFinite(density)) densityValues.push(density);
     if (Number.isFinite(place.income)) incomeValues.push(place.income);
     if (Number.isFinite(place.diversity)) diversityValues.push(place.diversity);
+    if (Number.isFinite(place.crimeRate)) crimeValues.push(place.crimeRate);
+    if (Number.isFinite(place.landSqMi) && place.landSqMi > 0) landAreaValues.push(Math.log1p(place.landSqMi));
     if (!placesByState[place.state]) placesByState[place.state] = [];
     placesByState[place.state].push(projected);
     searchablePlaces.push({
@@ -252,6 +262,8 @@ function preparePlaces(places) {
   densityValues.sort((a, b) => a - b);
   incomeValues.sort((a, b) => a - b);
   diversityValues.sort((a, b) => a - b);
+  crimeValues.sort((a, b) => a - b);
+  landAreaValues.sort((a, b) => a - b);
   placeDensityRange = {
     min: densityValues[Math.floor(densityValues.length * 0.02)] || 0,
     max: densityValues[Math.floor(densityValues.length * 0.98)] || 1,
@@ -263,6 +275,14 @@ function preparePlaces(places) {
   placeDiversityRange = {
     min: diversityValues[Math.floor(diversityValues.length * 0.02)] || 0,
     max: diversityValues[Math.floor(diversityValues.length * 0.98)] || 1,
+  };
+  placeCrimeRange = {
+    min: crimeValues[Math.floor(crimeValues.length * 0.02)] || 0,
+    max: crimeValues[Math.floor(crimeValues.length * 0.98)] || 1,
+  };
+  placeLandAreaRange = {
+    min: landAreaValues[Math.floor(landAreaValues.length * 0.02)] || 0,
+    max: landAreaValues[Math.floor(landAreaValues.length * 0.98)] || 1,
   };
 }
 
@@ -439,7 +459,22 @@ function metricForDot(dot, view) {
     }
     return metrics.diversityNorm;
   }
-  if (view === "landscape") return metrics.landAreaNorm;
+  if (view === "crime" && Number.isFinite(dot.place?.crimeRate)) {
+    return Math.max(
+      0,
+      Math.min(1, (dot.place.crimeRate - placeCrimeRange.min) / (placeCrimeRange.max - placeCrimeRange.min)),
+    );
+  }
+  if (view === "landscape" && Number.isFinite(dot.place?.landSqMi) && dot.place.landSqMi > 0) {
+    return Math.max(
+      0,
+      Math.min(
+        1,
+        (Math.log1p(dot.place.landSqMi) - placeLandAreaRange.min) /
+          (placeLandAreaRange.max - placeLandAreaRange.min),
+      ),
+    );
+  }
   return 0;
 }
 
@@ -447,6 +482,7 @@ function colorForView(view, score) {
   if (view === "population") return `rgb(${160 + score * 75}, ${46 + score * 42}, ${54 + score * 24})`;
   if (view === "wealth") return `rgb(${186 + score * 48}, ${127 + score * 62}, ${42 + score * 38})`;
   if (view === "diversity") return `rgb(${52 + score * 54}, ${103 + score * 82}, ${116 + score * 72})`;
+  if (view === "crime") return `rgb(${112 + score * 105}, ${72 - score * 25}, ${94 - score * 25})`;
   return `rgb(${67 + score * 58}, ${103 + score * 65}, ${74 + score * 34})`;
 }
 
@@ -594,6 +630,31 @@ function formatPercent(value) {
   return Number.isFinite(value) ? `${Math.round(value * 100)} / 100` : "Not reported";
 }
 
+function formatCrimeRate(place) {
+  if (!Number.isFinite(place?.crimeRate)) return "Not reported";
+  return `${Math.round(place.crimeRate).toLocaleString("en-US")} / 100k`;
+}
+
+function formatCrimeBreakdown(place) {
+  if (!Number.isFinite(place?.violentCrimeRate) || !Number.isFinite(place?.propertyCrimeRate)) {
+    return "Not reported";
+  }
+  return `${Math.round(place.violentCrimeRate).toLocaleString("en-US")} violent; ${Math.round(place.propertyCrimeRate).toLocaleString("en-US")} property`;
+}
+
+function crimeScopeNote(place) {
+  if (place?.crimeScope === "city") {
+    return "Crime is the matched 2024 FBI city-agency rate, calculated from the published offense counts and FBI population.";
+  }
+  if (place?.crimeScope === "nearest-reporting-city") {
+    const distance = Number.isFinite(place.crimeReferenceMiles)
+      ? ` (${Math.round(place.crimeReferenceMiles).toLocaleString("en-US")} mi away)`
+      : "";
+    return `Reference rate only: no direct agency match for this place; crime uses the nearest matched FBI reporting city, ${place.crimeReferenceName}${distance}.`;
+  }
+  return "FBI 2024 city crime data is unavailable for this place.";
+}
+
 function pointerInsideMap() {
   const mapPad = 28;
   return (
@@ -637,15 +698,17 @@ function renderProfile(dot, placeOverride = null) {
       <dt>Place density</dt><dd>${Number.isFinite(place?.density) ? `${Math.round(place.density).toLocaleString("en-US")} / sq mi` : "Not reported"}</dd>
       <dt>Median income</dt><dd>${formatMoney(place?.income)}</dd>
       <dt>Diversity index</dt><dd>${formatPercent(place?.diversity)}</dd>
+      <dt>Crime rate</dt><dd>${formatCrimeRate(place)}</dd>
+      <dt>Crime breakdown</dt><dd>${formatCrimeBreakdown(place)}</dd>
       <dt>Place land area</dt><dd>${Number.isFinite(place?.landSqMi) ? `${place.landSqMi.toLocaleString("en-US")} sq mi` : "Not reported"}</dd>
       <dt>State density</dt><dd>${Number.isFinite(state?.density) ? `${Math.round(state.density).toLocaleString("en-US")} / sq mi` : "Not reported"}</dd>
     </dl>
-    <p>Nearest Census place centroid to this dot within ${dot.stateName}; ACS 2024 5-year estimates where available.</p>
+    <p>${crimeScopeNote(place)} Nearest Census place centroid to this dot within ${dot.stateName}.</p>
   `;
 
   const rect = canvas.getBoundingClientRect();
   const profileWidth = 272;
-  const profileHeight = 236;
+  const profileHeight = 292;
   const x = Math.min(Math.max(pointer.x + 16, 12), rect.width - profileWidth - 12);
   const y = Math.min(Math.max(pointer.y + 16, 12), rect.height - profileHeight - 12);
   profile.style.transform = `translate(${x}px, ${y}px)`;
@@ -663,10 +726,12 @@ function renderPinnedPlaceProfile(place) {
       <dt>Place density</dt><dd>${Number.isFinite(place.density) ? `${Math.round(place.density).toLocaleString("en-US")} / sq mi` : "Not reported"}</dd>
       <dt>Median income</dt><dd>${formatMoney(place.income)}</dd>
       <dt>Diversity index</dt><dd>${formatPercent(place.diversity)}</dd>
+      <dt>Crime rate</dt><dd>${formatCrimeRate(place)}</dd>
+      <dt>Crime breakdown</dt><dd>${formatCrimeBreakdown(place)}</dd>
       <dt>Place land area</dt><dd>${Number.isFinite(place.landSqMi) ? `${place.landSqMi.toLocaleString("en-US")} sq mi` : "Not reported"}</dd>
       <dt>State density</dt><dd>${Number.isFinite(state?.density) ? `${Math.round(state.density).toLocaleString("en-US")} / sq mi` : "Not reported"}</dd>
     </dl>
-    <p>Pinned Census place centroid; ACS 2024 5-year estimates where available.</p>
+    <p>${crimeScopeNote(place)} Pinned Census place centroid.</p>
   `;
   selectedProfile.classList.add("visible");
   profile.classList.remove("visible", "pinned");
